@@ -1,13 +1,23 @@
-name: 'Wait'
-description: 'Wait a designated number of milliseconds'
+name: "Sync release branches"
+description: "Sync release branches by creating new branch and opening PR when something get merged to releases"
+branding:
+  icon: git-pull-request
+  color: green
 inputs:
-  milliseconds:  # id of input
-    description: 'number of milliseconds to wait'
+  GITHUB_TOKEN:
+    description: "User token of service account."
     required: true
-    default: '1000'
+  SOURCE_BRANCH:
+    description: "Branch to sync from where changes were merged"
+    required: true
+  TARGET_BRANCH:
+    description: "Branch where the changes will be merged"
+    required: true
 outputs:
-  time: # output will be available to future steps
-    description: 'The message to output'
+  PULL_REQUEST_URL:
+    description: "GitHub URL for either the generated pull request or the currently open one"
+  PULL_REQUEST_NUMBER:
+    description: "Pull request number from generated pull request or the currently open one"
 runs:
-  using: 'node12'
-  main: 'dist/index.js'
+  using: "node12"
+  main: "dist/index.js"

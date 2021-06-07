@@ -5,7 +5,9 @@ categories:
     label: feature
   - title: 🐛 Bug Fixes
     label: bugfix
-tag-template: - $TITLE @$AUTHOR (#$NUMBER)
+  - title: Dependencies
+    label: dependencies
+change-template: - $TITLE @$AUTHOR (#$NUMBER)
 template: |
   ## What’s Changed
 

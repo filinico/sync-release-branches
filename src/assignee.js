@@ -2,7 +2,7 @@
 const getPRIdFromCommit = (commitMessage) => {
     const regex = /#[0-9]+/g;
     const matches = commitMessage.match(regex);
-    if (matches != null){
+    if (matches){
         return matches[0].replace("#", "");
     }
     return matches;
@@ -10,6 +10,8 @@ const getPRIdFromCommit = (commitMessage) => {
 
 
 async function getSyncAssignee(octokit, context, serviceAccount) {
+    if (!serviceAccount)
+        return null;
     const {
         payload: { repository, commits },
     } = context;
@@ -23,7 +25,7 @@ async function getSyncAssignee(octokit, context, serviceAccount) {
         const prCreator = pullRequest.user.login;
         if (serviceAccount === prCreator){
             const assignees = pullRequest.assignees;
-            if (assignees != null && assignees.length > 0){
+            if (assignees && assignees.length > 0){
                 return assignees[0].login;
             }
             else

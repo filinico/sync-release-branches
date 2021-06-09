@@ -79,7 +79,10 @@ const contextSyncPrWithPrId = {
         ...mockContext.payload,
         commits: [
             mergeCommitSyncPrWithPrId
-        ]
+        ],
+        head_commit: {
+            ...mergeCommitSyncPrWithPrId
+        }
     }
 }
 
@@ -102,7 +105,10 @@ const contextSyncPrWithoutPrId = {
         ...mockContext.payload,
         commits: [
             mergeCommitSyncPrWithoutPrId
-        ]
+        ],
+        head_commit: {
+            ...mergeCommitSyncPrWithoutPrId
+        }
     }
 }
 
@@ -125,7 +131,10 @@ const contextOriginalPr = {
         ...mockContext.payload,
         commits: [
             mergeCommitOriginalPr
-        ]
+        ],
+        head_commit: {
+            ...mergeCommitOriginalPr
+        }
     }
 }
 

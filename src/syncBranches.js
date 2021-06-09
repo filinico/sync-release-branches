@@ -4,11 +4,11 @@ const releaseBranchType = "release";
 
 async function syncBranches(octokit, context, sourceBranch, targetBranch) {
     const {
-        payload: { repository, commits },
+        payload: { repository, head_commit },
     } = context;
-    let prId = getPRIdFromSyncBranch(commits[0].message);
+    let prId = getPRIdFromSyncBranch(head_commit.message);
     if (!prId){
-       prId = getPRIdFromCommit(commits[0].message);
+       prId = getPRIdFromCommit(head_commit.message);
     }
     const sourceBranchSuffix = getVersionFromBranch(sourceBranch, releaseBranchType);
     const targetBranchSuffix = getVersionFromBranch(targetBranch, releaseBranchType);

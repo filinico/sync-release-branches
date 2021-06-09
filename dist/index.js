@@ -7,87 +7,26 @@ require('./sourcemap-register.js');module.exports =
 
 const core = __nccwpck_require__(186);
 const github = __nccwpck_require__(438);
+const syncBranches = __nccwpck_require__(527);
 
 async function run() {
     try {
         const sourceBranch = core.getInput("SOURCE_BRANCH", { required: true });
         const targetBranch = core.getInput("TARGET_BRANCH", { required: true });
         const githubToken = core.getInput("GITHUB_TOKEN", { required: true });
-
-        let sourceBranchSuffix = sourceBranch;
-        if (sourceBranchSuffix.indexOf("release") > -1){
-            const sourceBranchSuffixArray = sourceBranch.split("/");
-            sourceBranchSuffix = sourceBranchSuffixArray[1];
-        }
-
-        let targetBranchSuffix = targetBranch;
-        if (targetBranchSuffix.indexOf("release") > -1){
-            const targetBranchSuffixArray = targetBranch.split("/");
-            targetBranchSuffix = targetBranchSuffixArray[1];
-        }
+        const serviceAccount = core.getInput("SERVICE_ACCOUNT", { required: true });
 
         const octokit = github.getOctokit(githubToken);
+
+        const pullRequest = await syncBranches(octokit, github.context, sourceBranch, targetBranch, serviceAccount);
         const {
             payload: { repository },
         } = github.context;
 
-        const { data: currentPulls } = await octokit.pulls.list({
-            owner: repository.owner.login,
-            repo: repository.name,
-        });
-
-        const context = github.context;
-        const syncBranch = `Sync-${sourceBranchSuffix}-with-${targetBranchSuffix}-${context.sha.slice(-4)}`;
-        const currentPull = currentPulls.find((pull) => {
-            return pull.head.ref === syncBranch && pull.base.ref === targetBranch;
-        });
-
-        if (!currentPull) {
-            await createBranch(octokit, context, syncBranch);
-            const { data: pullRequest } = await octokit.pulls.create({
-                owner: repository.owner.login,
-                repo: repository.name,
-                head: syncBranch,
-                base: targetBranch,
-                title: `Sync ${sourceBranchSuffix} with ${targetBranchSuffix} for commit ${context.sha.slice(-4)}`,
-                body: `Commit ${context.sha.slice(-4)} merged to release ${sourceBranchSuffix}.\nCreated branch ${syncBranch} and opened PR to ${targetBranchSuffix}.`,
-                draft: false,
-            });
-
-            core.setOutput("PULL_REQUEST_NUMBER", pullRequest.number.toString());
-            core.setOutput("PULL_REQUEST_URL",`https://github.com/coupa/${repository.name}/pull/${pullRequest.number.toString()}`);
-        } else {
-            console.log(
-                `There is already a pull request (${currentPull.number}) to ${targetBranch} from ${syncBranch}.`,
-                `You can view it here: https://github.com/coupa/${repository.name}/pull/${currentPull.number.toString()}`
-            );
-
-            core.setOutput("PULL_REQUEST_NUMBER", currentPull.number.toString());
-            core.setOutput("PULL_REQUEST_URL",`https://github.com/coupa/${repository.name}/pull/${currentPull.number.toString()}`);
-        }
-
+        core.setOutput("PULL_REQUEST_NUMBER", pullRequest.number.toString());
+        core.setOutput("PULL_REQUEST_URL",`https://github.com/coupa/${repository.name}/pull/${pullRequest.number.toString()}`);
     } catch (err) {
         core.setFailed(err.message);
-    }
-}
-
-async function createBranch(octokit, context, branch) {
-    try {
-        await octokit.repos.getBranch({
-            ...context.repo,
-            branch,
-        });
-    } catch (error) {
-        if (error.name === "HttpError" && error.status === 404) {
-            await octokit.git.createRef({
-                ref: `refs/heads/${branch}`,
-                sha: context.sha,
-                ...context.repo,
-            });
-        } else {
-            console.log("Error while creating new branch");
-            throw Error(error);
-        }
     }
 }
 
@@ -6030,6 +5969,153 @@ function wrappy (fn, cb) {
   }
 }
 
+
+/***/ }),
+
+/***/ 59:
+/***/ ((module) => {
+
+
+const getPRIdFromCommit = (commitMessage) => {
+    const regex = /#[0-9]+/g;
+    const matches = commitMessage.match(regex);
+    if (matches){
+        return matches[0].replace("#", "");
+    }
+    return matches;
+}
+
+
+async function getSyncAssignee(octokit, context, serviceAccount) {
+    if (!serviceAccount)
+        return null;
+    const {
+        payload: { repository, commits },
+    } = context;
+    if (serviceAccount === commits[0].author.username){
+        const prId = getPRIdFromCommit(commits[0].message);
+        const { data: pullRequest } = await octokit.pulls.get({
+            owner: repository.owner.login,
+            repo: repository.name,
+            pull_number: prId
+        });
+        const prCreator = pullRequest.user.login;
+        if (serviceAccount === prCreator){
+            const assignees = pullRequest.assignees;
+            if (assignees && assignees.length > 0){
+                return assignees[0].login;
+            }
+            else
+                return null;
+        }
+        else
+            return prCreator;
+    }
+    else{
+        return commits[0].author.username;
+    }
+}
+module.exports = {getPRIdFromCommit, getSyncAssignee};
+
+
+/***/ }),
+
+/***/ 972:
+/***/ ((module) => {
+
+
+const getVersionFromBranch = (branchName, branchType) => {
+    if (branchName.indexOf(branchType) > -1){
+        const sourceBranchSuffixArray = branchName.split("/");
+        if (sourceBranchSuffixArray.length > 1)
+            return  sourceBranchSuffixArray[1];
+    }
+    return branchName;
+};
+
+async function createBranch(octokit, context, branch) {
+    try {
+        await octokit.repos.getBranch({
+            ...context.repo,
+            branch,
+        });
+    } catch (error) {
+        if (error.name === "HttpError" && error.status === 404) {
+            await octokit.git.createRef({
+                ref: `refs/heads/${branch}`,
+                sha: context.sha,
+                ...context.repo,
+            });
+        } else {
+            console.log("Error while creating new branch");
+            throw Error(error);
+        }
+    }
+}
+
+module.exports = {getVersionFromBranch, createBranch};
+
+/***/ }),
+
+/***/ 527:
+/***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
+
+const {getSyncAssignee} = __nccwpck_require__(59);
+const {getVersionFromBranch, createBranch} = __nccwpck_require__(972);
+const releaseBranchType = "release";
+
+async function syncBranches(octokit, context, sourceBranch, targetBranch, serviceAccount) {
+    const sourceBranchSuffix = getVersionFromBranch(sourceBranch, releaseBranchType);
+    const targetBranchSuffix = getVersionFromBranch(targetBranch, releaseBranchType);
+    const syncBranch = `Sync-${sourceBranchSuffix}-with-${targetBranchSuffix}-${context.sha.slice(-4)}`;
+
+    const {
+        payload: { repository },
+    } = context;
+
+    const { data: currentPulls } = await octokit.pulls.list({
+        owner: repository.owner.login,
+        repo: repository.name,
+    });
+
+    const currentPull = currentPulls.find((pull) => {
+        return pull.head.ref === syncBranch && pull.base.ref === targetBranch;
+    });
+
+    if (!currentPull) {
+        await createBranch(octokit, context, syncBranch);
+        const { data: pullRequest } = await octokit.pulls.create({
+            owner: repository.owner.login,
+            repo: repository.name,
+            head: syncBranch,
+            base: targetBranch,
+            title: `Sync ${sourceBranchSuffix} with ${targetBranchSuffix} for commit ${context.sha.slice(-4)}`,
+            body: `Commit ${context.sha.slice(-4)} merged to release ${sourceBranchSuffix}.\nCreated branch ${syncBranch} and opened PR to ${targetBranchSuffix}.`,
+            draft: false,
+        });
+
+        const assignee = await getSyncAssignee(octokit, context, serviceAccount);
+        if (assignee){
+            await octokit.issues.addAssignees({
+                owner: repository.owner.login,
+                repo: repository.name,
+                issue_number: pullRequest.number,
+                assignees: [assignee],
+            });
+        }
+
+        return pullRequest;
+    }
+    else{
+        console.log(
+            `There is already a pull request (${currentPull.number}) to ${targetBranch} from ${syncBranch}.`,
+            `You can view it here: https://github.com/coupa/${repository.name}/pull/${currentPull.number.toString()}`
+        );
+        return currentPull;
+    }
+}
+
+module.exports = syncBranches;
 
 /***/ }),
 

@@ -5985,7 +5985,7 @@ const getPRIdFromCommit = (commitMessage) => {
 }
 
 const getPRIdFromSyncBranch = (commitMessage) => {
-    const regex = /^Merge pull request #[0-9]+ from [a-z]+\/sync\/[0-9a-z.]+-with-[0-9a-z.]+-pr#([0-9]+)$/g;
+    const regex = /Merge pull request #[0-9]+ from [a-z]+\/sync\/[0-9a-z.]+-with-[0-9a-z.]+-pr#([0-9]+)/g;
     const matches = Array.from(commitMessage.matchAll(regex), m => m[1]);
     if (matches.length){
         return matches[0];

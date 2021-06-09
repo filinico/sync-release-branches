@@ -62,55 +62,55 @@ const mockCommit = {
 
 /* Sync Pr with assignee */
 
-const commitMessageSyncPrWithAssignee = "Merge pull request #345 from test/Sync-19.1-with-19.2-392b";
+const commitMessageSyncPrWithPrId = "Merge pull request #346 from test/sync/19.1-with-19.2-pr#345";
 
-const mergeCommitServiceAccountSyncPRWithAssignee = {
+const mergeCommitSyncPrWithPrId = {
     ...mockCommit,
     author:{
         ...mockCommit.author,
         username: serviceAccount
     },
-    message: commitMessageSyncPrWithAssignee
+    message: commitMessageSyncPrWithPrId
 }
 
-const serviceAccountMergedSyncPRWithAssignee = {
+const contextSyncPrWithPrId = {
     ...mockContext,
     payload: {
         ...mockContext.payload,
         commits: [
-            mergeCommitServiceAccountSyncPRWithAssignee
+            mergeCommitSyncPrWithPrId
         ]
     }
 }
 
 /* Sync Pr without assignee */
 
-const commitMessageSyncPrWithoutAssignee = "Merge pull request #346 from test/Sync-19.1-with-19.2-392b";
+const commitMessageSyncPrWithoutPrId = "TT-40432 fix validation of null vat";
 
-const mergeCommitServiceAccountSyncPRWithoutAssignee = {
+const mergeCommitSyncPrWithoutPrId = {
     ...mockCommit,
     author:{
         ...mockCommit.author,
         username: serviceAccount
     },
-    message: commitMessageSyncPrWithoutAssignee
+    message: commitMessageSyncPrWithoutPrId
 }
 
-const serviceAccountMergedSyncPRWithoutAssignee = {
+const contextSyncPrWithoutPrId = {
     ...mockContext,
     payload: {
         ...mockContext.payload,
         commits: [
-            mergeCommitServiceAccountSyncPRWithoutAssignee
+            mergeCommitSyncPrWithoutPrId
         ]
     }
 }
 
 /* original Pr */
 
-const commitMessageOriginalPr = "Merge pull request #347 from test/Sync-19.1-with-19.2-392b";
+const commitMessageOriginalPr = "Merge pull request #345 from test/feature/NN/TT-123456-new-feature";
 
-const mergeCommitServiceAccountOriginalPr = {
+const mergeCommitOriginalPr = {
     ...mockCommit,
     author:{
         ...mockCommit.author,
@@ -119,37 +119,15 @@ const mergeCommitServiceAccountOriginalPr = {
     message: commitMessageOriginalPr
 }
 
-const serviceAccountMergedOriginalPr = {
+const contextOriginalPr = {
     ...mockContext,
     payload: {
         ...mockContext.payload,
         commits: [
-            mergeCommitServiceAccountOriginalPr
+            mergeCommitOriginalPr
         ]
     }
 }
 
-/* Pr merged by dev */
 
-const commitMessageDevPr = "Merge pull request #348 from test/Sync-19.1-with-19.2-392b";
-
-const mergeCommitDevPr = {
-    ...mockCommit,
-    author:{
-        ...mockCommit.author,
-        username: devAccount
-    },
-    message: commitMessageDevPr
-}
-
-const devAccountMergedPr = {
-    ...mockContext,
-    payload: {
-        ...mockContext.payload,
-        commits: [
-            mergeCommitDevPr
-        ]
-    }
-}
-
-module.exports = {serviceAccountMergedSyncPRWithAssignee, serviceAccountMergedSyncPRWithoutAssignee, serviceAccountMergedOriginalPr, devAccountMergedPr};
+module.exports = {contextSyncPrWithPrId, contextSyncPrWithoutPrId, contextOriginalPr};

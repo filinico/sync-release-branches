@@ -8,34 +8,28 @@ const getPRIdFromCommit = (commitMessage) => {
     return matches;
 }
 
+const getPRIdFromSyncBranch = (commitMessage) => {
+    const regex = /^Merge pull request #[0-9]+ from [a-z]+\/sync\/[0-9a-z.]+-with-[0-9a-z.]+-pr#([0-9]+)$/g;
+    const matches = Array.from(commitMessage.matchAll(regex), m => m[1]);
+    if (matches.length){
+        return matches[0];
+    }
+    return null;
+}
 
-async function getSyncAssignee(octokit, context, serviceAccount) {
-    if (!serviceAccount)
-        return null;
+async function getPrCreator(octokit, context, prId) {
     const {
-        payload: { repository, commits },
+        payload: { repository },
     } = context;
-    if (serviceAccount === commits[0].author.username){
-        const prId = getPRIdFromCommit(commits[0].message);
+    if (prId){
         const { data: pullRequest } = await octokit.pulls.get({
             owner: repository.owner.login,
             repo: repository.name,
             pull_number: prId
         });
-        const prCreator = pullRequest.user.login;
-        if (serviceAccount === prCreator){
-            const assignees = pullRequest.assignees;
-            if (assignees && assignees.length > 0){
-                return assignees[0].login;
-            }
-            else
-                return null;
-        }
-        else
-            return prCreator;
+        return pullRequest.user.login;
     }
-    else{
-        return commits[0].author.username;
-    }
+    return null;
 }
-module.exports = {getPRIdFromCommit, getSyncAssignee};
+
+module.exports = {getPRIdFromCommit, getPRIdFromSyncBranch, getPrCreator};

@@ -7,11 +7,10 @@ async function run() {
         const sourceBranch = core.getInput("SOURCE_BRANCH", { required: true });
         const targetBranch = core.getInput("TARGET_BRANCH", { required: true });
         const githubToken = core.getInput("GITHUB_TOKEN", { required: true });
-        const serviceAccount = core.getInput("SERVICE_ACCOUNT", { required: true });
 
         const octokit = github.getOctokit(githubToken);
 
-        const pullRequest = await syncBranches(octokit, github.context, sourceBranch, targetBranch, serviceAccount);
+        const pullRequest = await syncBranches(octokit, github.context, sourceBranch, targetBranch);
         const {
             payload: { repository },
         } = github.context;

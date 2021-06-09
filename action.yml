@@ -13,9 +13,6 @@ inputs:
   TARGET_BRANCH:
     description: "Branch where the changes will be merged"
     required: true
-  SERVICE_ACCOUNT:
-    description: "Username of the service account"
-    required: true
 outputs:
   PULL_REQUEST_URL:
     description: "GitHub URL for either the generated pull request or the currently open one"

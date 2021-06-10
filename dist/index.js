@@ -14,11 +14,10 @@ async function run() {
         const sourceBranch = core.getInput("SOURCE_BRANCH", { required: true });
         const targetBranch = core.getInput("TARGET_BRANCH", { required: true });
         const githubToken = core.getInput("GITHUB_TOKEN", { required: true });
-        const serviceAccount = core.getInput("SERVICE_ACCOUNT", { required: true });
 
         const octokit = github.getOctokit(githubToken);
 
-        const pullRequest = await syncBranches(octokit, github.context, sourceBranch, targetBranch, serviceAccount);
+        const pullRequest = await syncBranches(octokit, github.context, sourceBranch, targetBranch);
         const {
             payload: { repository },
         } = github.context;
@@ -5985,37 +5984,31 @@ const getPRIdFromCommit = (commitMessage) => {
     return matches;
 }
 
+const getPRIdFromSyncBranch = (commitMessage) => {
+    const regex = /Merge pull request #[0-9]+ from [a-z]+\/sync\/[0-9a-z.]+-with-[0-9a-z.]+-pr#([0-9]+)/g;
+    const matches = Array.from(commitMessage.matchAll(regex), m => m[1]);
+    if (matches.length){
+        return matches[0];
+    }
+    return null;
+}
 
-async function getSyncAssignee(octokit, context, serviceAccount) {
-    if (!serviceAccount)
-        return null;
+async function getPrCreator(octokit, context, prId) {
     const {
-        payload: { repository, commits },
+        payload: { repository },
     } = context;
-    if (serviceAccount === commits[0].author.username){
-        const prId = getPRIdFromCommit(commits[0].message);
+    if (prId){
         const { data: pullRequest } = await octokit.pulls.get({
             owner: repository.owner.login,
             repo: repository.name,
             pull_number: prId
         });
-        const prCreator = pullRequest.user.login;
-        if (serviceAccount === prCreator){
-            const assignees = pullRequest.assignees;
-            if (assignees && assignees.length > 0){
-                return assignees[0].login;
-            }
-            else
-                return null;
-        }
-        else
-            return prCreator;
+        return pullRequest.user.login;
     }
-    else{
-        return commits[0].author.username;
-    }
+    return null;
 }
-module.exports = {getPRIdFromCommit, getSyncAssignee};
+
+module.exports = {getPRIdFromCommit, getPRIdFromSyncBranch, getPrCreator};
 
 
 /***/ }),
@@ -6060,18 +6053,29 @@ module.exports = {getVersionFromBranch, createBranch};
 /***/ 527:
 /***/ ((module, __unused_webpack_exports, __nccwpck_require__) => {
 
-const {getSyncAssignee} = __nccwpck_require__(59);
+const {getPrCreator, getPRIdFromSyncBranch, getPRIdFromCommit} = __nccwpck_require__(59);
 const {getVersionFromBranch, createBranch} = __nccwpck_require__(972);
 const releaseBranchType = "release";
 
-async function syncBranches(octokit, context, sourceBranch, targetBranch, serviceAccount) {
+async function syncBranches(octokit, context, sourceBranch, targetBranch) {
+    const {
+        payload: { repository, head_commit },
+    } = context;
+    let prId = getPRIdFromSyncBranch(head_commit.message);
+    if (!prId){
+       prId = getPRIdFromCommit(head_commit.message);
+    }
     const sourceBranchSuffix = getVersionFromBranch(sourceBranch, releaseBranchType);
     const targetBranchSuffix = getVersionFromBranch(targetBranch, releaseBranchType);
-    const syncBranch = `Sync-${sourceBranchSuffix}-with-${targetBranchSuffix}-${context.sha.slice(-4)}`;
-
-    const {
-        payload: { repository },
-    } = context;
+    const commitId = context.sha.slice(12);
+    let syncBranch = `sync/${sourceBranchSuffix}-with-${targetBranchSuffix}-${commitId}`;
+    let title = `Sync ${sourceBranchSuffix} with ${targetBranchSuffix} for commit ${commitId}`;
+    let description = `Commit ${commitId} merged to release ${sourceBranchSuffix}.\nCreated branch ${syncBranch} and opened PR to ${targetBranchSuffix}.`;
+    if (prId){
+        syncBranch = `sync/${sourceBranchSuffix}-with-${targetBranchSuffix}-pr#${prId}`;
+        title = `Sync ${sourceBranchSuffix} with ${targetBranchSuffix} for pr#${prId}`;
+        description = `Changes from PR #${prId} merged to release ${sourceBranchSuffix}.\nCreated branch ${syncBranch} and opened PR to ${targetBranchSuffix}.`;
+    }
 
     const { data: currentPulls } = await octokit.pulls.list({
         owner: repository.owner.login,
@@ -6089,19 +6093,21 @@ async function syncBranches(octokit, context, sourceBranch, targetBranch, servic
             repo: repository.name,
             head: syncBranch,
             base: targetBranch,
-            title: `Sync ${sourceBranchSuffix} with ${targetBranchSuffix} for commit ${context.sha.slice(-4)}`,
-            body: `Commit ${context.sha.slice(-4)} merged to release ${sourceBranchSuffix}.\nCreated branch ${syncBranch} and opened PR to ${targetBranchSuffix}.`,
+            title: title,
+            body: description,
             draft: false,
         });
 
-        const assignee = await getSyncAssignee(octokit, context, serviceAccount);
-        if (assignee){
-            await octokit.issues.addAssignees({
-                owner: repository.owner.login,
-                repo: repository.name,
-                issue_number: pullRequest.number,
-                assignees: [assignee],
-            });
+        if (pullRequest.mergeable_state === "dirty" ){
+            const prCreator = await getPrCreator(octokit, context, prId);
+            if (prCreator){
+                await octokit.issues.addAssignees({
+                    owner: repository.owner.login,
+                    repo: repository.name,
+                    issue_number: pullRequest.number,
+                    assignees: [prCreator],
+                });
+            }
         }
 
         return pullRequest;

@@ -9,7 +9,7 @@ const mockPrData = {
         "login": "unknown",
     },
     "head": {
-        "ref": "Sync-10.0-with-20.0-7cab",
+        "ref": "sync/10.0-with-20.0-pr#345",
     },
     "base": {
         "ref": "release/20.0",
@@ -36,25 +36,31 @@ const mockPr = {
     data : mockPrData
 };
 
+const prWithAssignee = {
+    ...mockPrData,
+    "number": 346,
+    user:{
+        "login": serviceAccount,
+    },
+    "mergeable": false,
+    "mergeable_state": "dirty",
+    "assignees": [
+        {
+            "login": devAccount,
+        }
+    ],
+};
+
 const syncPrWithAssignee = {
     ...mockPr,
     data : {
-        ...mockPr.data,
-        "number": 345,
-        user:{
-            "login": serviceAccount,
-        },
-        "assignees": [
-            {
-                "login": devAccount,
-            }
-        ],
+        ...prWithAssignee,
     }
 };
 
 const prWithoutAssignee = {
     ...mockPrData,
-    "number": 346,
+    "number": 347,
     user:{
         "login": serviceAccount,
     },
@@ -73,7 +79,7 @@ const originalPr = {
     ...mockPr,
     data : {
         ...mockPr.data,
-        "number": 347,
+        "number": 345,
         user:{
             "login": devAccount,
         },
@@ -82,4 +88,4 @@ const originalPr = {
     }
 };
 
-module.exports = {syncPrWithAssignee, syncPrWithoutAssignee, originalPr, prWithoutAssignee};
+module.exports = {syncPrWithAssignee, syncPrWithoutAssignee, originalPr, prWithoutAssignee, prWithAssignee};

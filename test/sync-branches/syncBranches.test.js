@@ -1,7 +1,7 @@
 const syncBranches = require("../../src/syncBranches");
-const {serviceAccount, devAccount} = require("../testData/userAccounts");
-const {serviceAccountMergedSyncPRWithAssignee, serviceAccountMergedSyncPRWithoutAssignee} = require("../testData/gitHubContexts");
-const {syncPrWithAssignee, syncPrWithoutAssignee, prWithoutAssignee} = require("../testData/pullRequests");
+const {devAccount} = require("../testData/userAccounts");
+const {contextSyncPrWithPrId, contextSyncPrWithoutPrId, contextOriginalPr} = require("../testData/gitHubContexts");
+const {syncPrWithAssignee, syncPrWithoutAssignee, prWithoutAssignee, originalPr, prWithAssignee} = require("../testData/pullRequests");
 const {mockOctokit} = require("../testData/mockOctokit");
 const exception = {
     name: "HttpError",
@@ -21,14 +21,14 @@ beforeEach(() => {
     mockOctokit.git.createRef.mockReset();
 });
 
-test('sync pr created with assignee', async () => {
+test('When original Pr merged, sync pr created with conflicts and original pr creator as assignee', async () => {
     mockOctokit.pulls.list.mockReturnValue({data: []});
-    mockOctokit.pulls.get.mockReturnValue(syncPrWithAssignee);
-    mockOctokit.pulls.create.mockReturnValue(syncPrWithoutAssignee);
+    mockOctokit.pulls.get.mockReturnValue(originalPr);
+    mockOctokit.pulls.create.mockReturnValue(syncPrWithAssignee);
     mockOctokit.repos.getBranch.mockRejectedValue(exception);
 
-    const data = await syncBranches(mockOctokit, serviceAccountMergedSyncPRWithAssignee, "release/10.0", "release/20.0", serviceAccount);
-    expect(data).toEqual(prWithoutAssignee);
+    const data = await syncBranches(mockOctokit, contextOriginalPr, "release/10.0", "release/20.0");
+    expect(data).toEqual(prWithAssignee);
     expect(mockOctokit.pulls.create).toHaveBeenCalled();
     expect(mockOctokit.git.createRef).toHaveBeenCalled();
     expect(mockOctokit.issues.addAssignees).toHaveBeenCalledWith({
@@ -36,25 +36,79 @@ test('sync pr created with assignee', async () => {
         issue_number: 346,
         assignees: [devAccount]
     });
+    expect(mockOctokit.pulls.get).toHaveBeenCalledWith({
+        ...requestParams,
+        pull_number: "345",
+    });
 });
 
-test('sync pr created without assignee', async () => {
+test('When Sync Pr merged, next sync pr created with conflicts and original pr creator as assignee', async () => {
+    mockOctokit.pulls.list.mockReturnValue({data: []});
+    mockOctokit.pulls.get.mockReturnValue(originalPr);
+    mockOctokit.pulls.create.mockReturnValue(syncPrWithAssignee);
+    mockOctokit.repos.getBranch.mockRejectedValue(exception);
+
+    const data = await syncBranches(mockOctokit, contextSyncPrWithPrId, "release/10.0", "release/20.0");
+    expect(data).toEqual(prWithAssignee);
+    expect(mockOctokit.pulls.create).toHaveBeenCalled();
+    expect(mockOctokit.git.createRef).toHaveBeenCalled();
+    expect(mockOctokit.issues.addAssignees).toHaveBeenCalledWith({
+        ...requestParams,
+        issue_number: 346,
+        assignees: [devAccount]
+    });
+    expect(mockOctokit.pulls.get).toHaveBeenCalledWith({
+        ...requestParams,
+        pull_number: "345",
+    });
+});
+
+test('sync pr created without conflicts from original pr', async () => {
     mockOctokit.pulls.list.mockReturnValue({data: []});
     mockOctokit.pulls.get.mockReturnValue(syncPrWithoutAssignee);
     mockOctokit.pulls.create.mockReturnValue(syncPrWithoutAssignee);
     mockOctokit.repos.getBranch.mockRejectedValue(exception);
 
-    const data = await syncBranches(mockOctokit, serviceAccountMergedSyncPRWithoutAssignee, "release/10.0", "release/20.0", serviceAccount);
+    const data = await syncBranches(mockOctokit, contextOriginalPr, "release/10.0", "release/20.0");
     expect(data).toEqual(prWithoutAssignee);
     expect(mockOctokit.pulls.create).toHaveBeenCalled();
     expect(mockOctokit.git.createRef).toHaveBeenCalled();
     expect(mockOctokit.issues.addAssignees).not.toHaveBeenCalled();
+    expect(mockOctokit.pulls.get).not.toHaveBeenCalled();
+});
+
+test('next sync pr created without conflicts from sync pr', async () => {
+    mockOctokit.pulls.list.mockReturnValue({data: []});
+    mockOctokit.pulls.get.mockReturnValue(syncPrWithoutAssignee);
+    mockOctokit.pulls.create.mockReturnValue(syncPrWithoutAssignee);
+    mockOctokit.repos.getBranch.mockRejectedValue(exception);
+
+    const data = await syncBranches(mockOctokit, contextSyncPrWithPrId, "release/10.0", "release/20.0");
+    expect(data).toEqual(prWithoutAssignee);
+    expect(mockOctokit.pulls.create).toHaveBeenCalled();
+    expect(mockOctokit.git.createRef).toHaveBeenCalled();
+    expect(mockOctokit.issues.addAssignees).not.toHaveBeenCalled();
+    expect(mockOctokit.pulls.get).not.toHaveBeenCalled();
+});
+
+test('When Sync Pr merged sync pr created without assignee', async () => {
+    mockOctokit.pulls.list.mockReturnValue({data: []});
+    mockOctokit.pulls.get.mockReturnValue(syncPrWithoutAssignee);
+    mockOctokit.pulls.create.mockReturnValue(syncPrWithoutAssignee);
+    mockOctokit.repos.getBranch.mockRejectedValue(exception);
+
+    const data = await syncBranches(mockOctokit, contextSyncPrWithoutPrId, "release/10.0", "release/20.0");
+    expect(data).toEqual(prWithoutAssignee);
+    expect(mockOctokit.pulls.create).toHaveBeenCalled();
+    expect(mockOctokit.git.createRef).toHaveBeenCalled();
+    expect(mockOctokit.issues.addAssignees).not.toHaveBeenCalled();
+    expect(mockOctokit.pulls.get).not.toHaveBeenCalled();
 });
 
 test('sync pr already exists', async () => {
-    mockOctokit.pulls.list.mockReturnValue({data: [{...prWithoutAssignee}]});
-    const data = await syncBranches(mockOctokit, serviceAccountMergedSyncPRWithoutAssignee, "release/10.0", "release/20.0", serviceAccount);
-    expect(data).toEqual(prWithoutAssignee);
+    mockOctokit.pulls.list.mockReturnValue({data: [{...prWithAssignee}]});
+    const data = await syncBranches(mockOctokit, contextSyncPrWithPrId, "release/10.0", "release/20.0");
+    expect(data).toEqual(prWithAssignee);
     expect(mockOctokit.pulls.create).not.toHaveBeenCalled();
     expect(mockOctokit.pulls.get).not.toHaveBeenCalled();
     expect(mockOctokit.git.createRef).not.toHaveBeenCalled();

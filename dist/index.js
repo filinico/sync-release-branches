@@ -6098,7 +6098,7 @@ async function syncBranches(octokit, context, sourceBranch, targetBranch) {
             draft: false,
         });
 
-        if (!pullRequest.mergeable){
+        if (pullRequest.mergeable_state === "dirty" ){
             const prCreator = await getPrCreator(octokit, context, prId);
             if (prCreator){
                 await octokit.issues.addAssignees({

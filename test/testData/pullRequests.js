@@ -43,6 +43,7 @@ const prWithAssignee = {
         "login": serviceAccount,
     },
     "mergeable": false,
+    "mergeable_state": "dirty",
     "assignees": [
         {
             "login": devAccount,
